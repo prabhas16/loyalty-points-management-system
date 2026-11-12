@@ -3,6 +3,8 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}LoyaltyHub{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='controls.css') }}">
+<script src="{{ url_for('static', filename='lookup.js') }}" defer></script>
 </head><body>
 <aside class="sidebar">
   <div class="brand"><span class="brand-mark">L</span><div><b>LoyaltyHub</b><small>Points management</small></div></div>
@@ -17,10 +19,12 @@
     <a href="{{ url_for('ledger') }}">☷ <span>Audit ledger</span></a>
     <a href="{{ url_for('reports') }}">▥ <span>Reports</span></a>
   </nav>
-  <div class="sidebar-bottom"><span class="live-dot"></span> System workspace</div>
+  <div class="sidebar-bottom"><span class="live-dot"></span>Local application</div>
 </aside>
 <main class="main">
-  <header class="topbar"><div><span class="eyebrow">LOYALTY OPERATIONS</span><h1>{% block heading %}Overview{% endblock %}</h1></div><a class="button button-light" href="{{ url_for('setup') }}">Database setup</a></header>
+  <header class="topbar"><div><span class="eyebrow">LOYALTY OPERATIONS</span><h1>{% block heading %}Overview{% endblock %}</h1></div>
+    <div class="topbar-actions"><a class="button button-light" href="{{ url_for('setup') }}">Database setup</a></div>
+  </header>
   <section class="content">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}{% for category,message in messages %}<div class="alert alert-{{ category }}">{{ message }}</div>{% endfor %}{% endif %}

@@ -1,0 +1,43 @@
+[
+  {
+    "case_id": "AN-001",
+    "issue_type": "BALANCE_MISMATCH",
+    "entity_id": "LOY-000001",
+    "description": "Snapshot balance intentionally offset by +37 points",
+    "offset_points": 37,
+    "injected_effect": "snapshot balance is 37 points above its ledger balance"
+  },
+  {
+    "case_id": "AN-002",
+    "issue_type": "REDEMPTION_EXCEEDS_BALANCE",
+    "entity_id": "RDM-2026-100001",
+    "description": "Oversized redemption request deliberately injected",
+    "account_id": "LOY-000002",
+    "excess_points": 1000,
+    "injected_effect": "approved redemption and debit exceed the account balance by 1000 points"
+  },
+  {
+    "case_id": "AN-003",
+    "issue_type": "RETURN_WITHOUT_REVERSAL",
+    "entity_id": "ORD-2026-000004",
+    "description": "Returned order deliberately has no matching reversal event",
+    "injected_effect": "order is marked fully returned without a reversal transaction"
+  },
+  {
+    "case_id": "AN-004",
+    "issue_type": "DUPLICATE_EXPIRY",
+    "entity_id": "EXP-2026-080001",
+    "description": "Duplicate expiry batch intentionally references an already expired lot",
+    "original_batch_id": "EXP-2026-080000",
+    "source_order_id": "ORD-2026-000004",
+    "injected_effect": "two expiry batches debit the same accrual lot twice"
+  },
+  {
+    "case_id": "AN-005",
+    "issue_type": "TIER_GROSS_VS_QUALIFYING",
+    "entity_id": "LOY-000001",
+    "description": "Tier decision checked against gross spend rather than qualifying net spend",
+    "incorrect_tier_name": "Gold",
+    "injected_effect": "Gold tier is assigned although qualifying net spend is below its threshold"
+  }
+]

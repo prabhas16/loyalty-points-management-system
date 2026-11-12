@@ -1,0 +1,1250 @@
+# PROJECT: ENTERPRISE LOYALTY POINTS MANAGEMENT & AUDITABLE LEDGER PLATFORM
+
+## 1. YOUR ROLE
+
+Act as a Senior Full-Stack Software Architect, UI/UX Designer, Backend Engineer, Database Architect, Data Engineer, QA Engineer, and Business Analyst.
+
+Build a complete, functional, end-to-end Loyalty Points Management Platform with a modern frontend, scalable backend, relational database, synthetic data generator, auditable transaction ledger, business rule engine, validation framework, and analytics dashboard.
+
+This must be a working application, not a static UI prototype.
+
+All frontend screens must connect to real backend APIs, and all business operations must persist to the database.
+
+Do not use mock responses for core business functionality. Implement actual business logic, database transactions, validations, and error handling.
+
+## 2. BUSINESS OBJECTIVE
+
+Build a loyalty management system that supports the complete lifecycle of loyalty points:
+
+1. Customer registration and loyalty account creation.
+2. Loyalty tier configuration.
+3. Earning rate and rule configuration.
+4. Points accrual from eligible purchases.
+5. Points redemption against available balances.
+6. Full and partial order returns.
+7. Reversal of previously earned points.
+8. Points expiration based on expiry dates and earning lots.
+9. Tier progression based on qualifying spend.
+10. Concurrent redemption handling.
+11. Auditable transaction history.
+12. Anomaly detection and exception management.
+13. Synthetic data generation at configurable scale.
+14. Data validation and reconciliation.
+15. Ground-truth anomaly classification.
+16. Reproducibility verification.
+
+The application must provide complete traceability from customer and order records to every points transaction.
+
+## 3. RECOMMENDED TECHNOLOGY STACK
+
+Use the following technology stack:
+
+Frontend:
+- React.js with TypeScript.
+- Vite.
+- Tailwind CSS.
+- shadcn/ui components.
+- Recharts for analytics and visualizations.
+- React Router.
+- TanStack Query for API state management.
+- React Hook Form with Zod validation.
+
+Backend:
+- Python FastAPI.
+- SQLAlchemy ORM.
+- Pydantic validation.
+- Alembic database migrations.
+- REST API architecture.
+- Background processing for large data generation and expiry jobs.
+
+Database:
+- PostgreSQL.
+- Proper relational constraints.
+- Foreign keys and indexes.
+- Database transactions.
+- Append-only loyalty ledger.
+- Audit history tables.
+
+Data Engineering:
+- Python.
+- Pandas.
+- NumPy.
+- Faker.
+- Seed-based deterministic generation.
+- CSV, JSON and SQL export.
+
+Testing:
+- Pytest.
+- API integration tests.
+- Frontend component tests.
+- Playwright end-to-end tests.
+
+Deployment:
+- Docker.
+- Docker Compose.
+- Environment-based configuration.
+- Production-ready build.
+
+Use compatible stable versions and document all dependencies.
+
+## 4. APPLICATION USERS AND ROLES
+
+Implement role-based access control.
+
+### Customer
+- View loyalty profile.
+- View current points balance.
+- View tier and progression.
+- View points earned and redeemed.
+- View expiring points.
+- View transaction history.
+
+### Store/Warehouse Operator
+- Search customers.
+- View loyalty accounts.
+- Process eligible orders.
+- Initiate returns.
+- Process partial returns.
+- View points accrual and reversal details.
+
+### Merchandising/E-commerce Analyst
+- Configure earning rules.
+- Configure loyalty tiers.
+- Configure reward catalog.
+- Analyze customer purchasing behavior.
+- Analyze points utilization.
+- Review campaign performance.
+
+### Operations Manager
+- Monitor loyalty operations.
+- Review exceptions and anomalies.
+- Approve or reject eligible exception resolutions.
+- Run reconciliation.
+- Monitor expiration batches.
+- Review audit logs.
+- Generate reports and exports.
+
+Include authentication, session management, protected routes, and role-based permissions.
+
+## 5. APPLICATION MODULES
+
+Build the following modules.
+
+### Module 1: Executive Dashboard
+
+Create an enterprise dashboard displaying:
+
+KPI cards:
+- Total customers.
+- Active loyalty accounts.
+- Total orders.
+- Total points accrued.
+- Total points redeemed.
+- Total points expired.
+- Total points reversed.
+- Outstanding points liability.
+- Average points per customer.
+- Redemption rate.
+- Expiration rate.
+- Number of unresolved exceptions.
+
+Charts:
+- Points earned vs redeemed over time.
+- Monthly loyalty activity.
+- Points expiration trends.
+- Customer distribution by tier.
+- Tier upgrade and downgrade trends.
+- Top customers by points.
+- Redemption by reward category.
+- Exception distribution by issue type.
+
+Include date filters, tier filters, customer search, and export functionality.
+
+Every dashboard metric must be calculated from actual database records.
+
+### Module 2: Customer Management
+
+Create customer management screens.
+
+Fields:
+- customer_id (PK).
+- first_name.
+- last_name.
+- email.
+- phone.
+- registration_date.
+- customer_status.
+- region.
+- created_at.
+- updated_at.
+
+Features:
+- Create customer.
+- Edit customer.
+- Search and filter customers.
+- View customer details.
+- View associated loyalty account.
+- View orders.
+- View complete points history.
+- View tier progression.
+- View customer-level reconciliation.
+
+Generate 20,000 synthetic customers in full-scale mode.
+
+### Module 3: Loyalty Account Management
+
+Each customer must have a loyalty account.
+
+Fields:
+- loyalty_account_id (PK).
+- customer_id (FK).
+- account_number.
+- current_tier_id (FK).
+- current_balance.
+- lifetime_points_earned.
+- lifetime_points_redeemed.
+- lifetime_points_expired.
+- account_status.
+- enrollment_date.
+- created_at.
+- updated_at.
+
+Account ID convention:
+
+LOY-<customer-id>
+
+Implement:
+- Account creation.
+- Account activation.
+- Account suspension.
+- Account closure.
+- Balance inquiry.
+- Ledger reconciliation.
+
+Important: current_balance must reconcile with the sum of posted ledger entries. Do not use an independently generated balance.
+
+### Module 4: Loyalty Tier Configuration
+
+Create configurable loyalty tiers.
+
+Provide default tiers:
+
+| Tier | Qualifying Spend | Earning Rate |
+|---|---:|---:|
+| Bronze | 0 | 1 point per ₹100 |
+| Silver | ₹10,000 | 2 points per ₹100 |
+| Gold | ₹30,000 | 3 points per ₹100 |
+| Platinum | ₹75,000 | 5 points per ₹100 |
+
+These must be configurable rather than hardcoded.
+
+Fields:
+- tier_id.
+- tier_name.
+- minimum_qualifying_spend.
+- earning_rate.
+- benefits.
+- effective_from.
+- effective_to.
+- tier_status.
+
+Implement:
+- Tier creation and modification.
+- Effective-date validation.
+- Tier progression.
+- Tier upgrade and downgrade.
+- Tier change history.
+
+Use qualifying net spend, excluding cancelled orders, refunded amounts, and nonqualifying products.
+
+### Module 5: Loyalty Rule Engine
+
+Create a configurable rule management module.
+
+Rule types:
+- Earning rules.
+- Redemption rules.
+- Expiration rules.
+- Reversal rules.
+- Tier qualification rules.
+- Product/category eligibility rules.
+
+Each rule must have:
+- rule_id.
+- rule_name.
+- rule_type.
+- description.
+- calculation_method.
+- earning_rate.
+- minimum_spend.
+- maximum_points.
+- applicable_tiers.
+- effective_from.
+- effective_to.
+- priority.
+- rule_status.
+
+Rules must be effective-date aware.
+
+Record the exact rule ID and rule version applied to each relevant transaction.
+
+### Module 6: Order Management
+
+Create order and order-line management.
+
+Order fields:
+- order_id (PK).
+- customer_id (FK).
+- order_date.
+- order_status.
+- gross_amount.
+- discount_amount.
+- refund_amount.
+- net_eligible_amount.
+- currency.
+- channel.
+- created_at.
+
+Order ID convention:
+
+ORD-2026-000001
+
+OrderLine fields:
+- order_line_id (PK).
+- order_id (FK).
+- product_id.
+- category.
+- quantity.
+- unit_price.
+- discount_amount.
+- returned_quantity.
+- eligible_amount.
+- is_eligible.
+
+Support:
+- Online orders.
+- In-store orders.
+- Warehouse orders.
+- Cancelled orders.
+- Completed orders.
+- Partially returned orders.
+- Fully returned orders.
+- Refunds.
+
+Generate 100,000 synthetic orders in full-scale mode.
+
+### Module 7: Points Accrual Engine
+
+Implement the actual points earning logic.
+
+Formula:
+
+Eligible Net Spend = Gross Spend - Discounts - Refunds - Non-Eligible Amount
+
+Points Earned = FLOOR(Eligible Net Spend / Earning Threshold) × Applicable Earning Rate
+
+Apply tier and rule configurations.
+
+Workflow:
+1. Receive completed order.
+2. Validate customer and loyalty account.
+3. Validate order eligibility.
+4. Calculate eligible net spend.
+5. Identify applicable tier.
+6. Identify applicable earning rule.
+7. Calculate points.
+8. Create points accrual ledger transaction.
+9. Create an earning lot with its expiry date.
+10. Update account balance within a database transaction.
+11. Record an audit event.
+
+Prevent duplicate accrual using an idempotency key.
+
+### Module 8: Points Ledger
+
+This is the core of the application.
+
+Create an immutable, auditable points ledger.
+
+PointsTransaction fields:
+- transaction_id (PK).
+- loyalty_account_id (FK).
+- order_id (FK, optional).
+- transaction_type.
+- points_amount.
+- debit_credit.
+- transaction_status.
+- original_transaction_id (FK, optional).
+- rule_id (FK, optional).
+- earning_lot_id (FK, optional).
+- transaction_date.
+- expiry_date.
+- idempotency_key.
+- created_by.
+- created_at.
+
+Transaction ID convention:
+
+PTS-2026-00000001
+
+Supported transaction types:
+- ACCRUAL.
+- REDEMPTION.
+- REVERSAL.
+- EXPIRATION.
+- ADJUSTMENT.
+- REFUND.
+
+Rules:
+- Never physically delete posted transactions.
+- Never modify historical posted entries.
+- Reverse transactions using new compensating ledger entries.
+- Link every reversal to its original accrual.
+- Record actor, timestamp, reason, and source event.
+- Maintain transaction lifecycle history.
+- Support complete customer-level audit trails.
+
+Create a ledger viewer with filters for customer, order, transaction type, status, and date.
+
+### Module 9: Points Redemption
+
+Create reward and redemption functionality.
+
+Reward fields:
+- reward_id (PK).
+- reward_name.
+- reward_category.
+- points_required.
+- reward_status.
+- effective_from.
+- effective_to.
+- stock_quantity (optional).
+
+Redemption fields:
+- redemption_id (PK).
+- loyalty_account_id (FK).
+- reward_id (FK).
+- points_used.
+- redemption_status.
+- redemption_date.
+- idempotency_key.
+- created_by.
+
+Redemption ID convention:
+
+RDM-2026-000001
+
+Business rules:
+1. Validate account status.
+2. Validate reward availability.
+3. Calculate available balance.
+4. Validate sufficient points.
+5. Lock the account or relevant point lots during processing.
+6. Deduct points atomically.
+7. Create redemption record.
+8. Create ledger debit entry.
+9. Record audit event.
+
+Prevent concurrent requests from spending the same points twice.
+
+If redemption exceeds the available balance, reject it and record an appropriate exception.
+
+Use database-level concurrency control, such as row locking or serializable transactions, where appropriate.
+
+### Module 10: Returns and Points Reversal
+
+Support full and partial returns.
+
+When an order is returned:
+1. Retrieve the original order.
+2. Retrieve the original accrual transactions.
+3. Determine the returned eligible amount.
+4. Calculate proportional points to reverse.
+5. Verify previously earned points.
+6. Create a reversal transaction.
+7. Link reversal to the original accrual.
+8. Reconcile the remaining points.
+9. Update qualifying spend.
+10. Recalculate tier eligibility.
+11. Record the return event and audit history.
+
+Do not silently overwrite the original accrual.
+
+If the customer has already redeemed the points, handle the resulting negative-balance or recovery policy according to a configurable business rule.
+
+Support partial and full returns separately.
+
+### Module 11: Points Expiration Engine
+
+Implement lot-based expiration.
+
+Every accrual creates a points lot with:
+- earning_lot_id.
+- original_transaction_id.
+- loyalty_account_id.
+- original_points.
+- remaining_points.
+- earned_date.
+- expiry_date.
+- lot_status.
+
+Use configurable expiration policies.
+
+Default policy: points expire 365 days after earning.
+
+Expiration workflow:
+1. Identify lots reaching expiry.
+2. Verify remaining points.
+3. Verify the lot has not already expired.
+4. Calculate remaining eligible points.
+5. Create an EXPIRATION ledger debit.
+6. Link the expiration to the original earning lot.
+7. Update lot remaining points.
+8. Mark the lot expired.
+9. Record the expiry batch.
+
+ExpiryBatch fields:
+- expiry_batch_id.
+- execution_date.
+- processed_lot_count.
+- expired_points.
+- batch_status.
+- error_count.
+- created_at.
+
+Expiration ID convention:
+
+EXP-2026-000001
+
+Expiration must be idempotent. Running the same expiration job twice must not expire the same points twice.
+
+### Module 12: Tier Progression Engine
+
+Calculate tiers from qualifying net spend.
+
+Include:
+- Current tier.
+- Qualifying spend.
+- Next-tier threshold.
+- Remaining spend to upgrade.
+- Upgrade eligibility.
+- Downgrade eligibility.
+- Tier history.
+
+Use configured qualification periods and effective dates.
+
+Create explicit tier change events rather than overwriting history.
+
+Detect and label cases where gross spend was incorrectly used instead of qualifying spend.
+
+### Module 13: Exception and Anomaly Management
+
+Create a dedicated exception management center.
+
+Detect and classify the following five mandatory anomalies:
+
+1. BALANCE_MISMATCH:
+   Account balance differs from the net sum of posted ledger entries.
+
+2. REDEMPTION_EXCEEDS_BALANCE:
+   Redemption request exceeds available points.
+
+3. RETURN_WITHOUT_REVERSAL:
+   Returned order retains all or part of the points that should have been reversed.
+
+4. DUPLICATE_EXPIRATION:
+   The same earning lot is expired more than once.
+
+5. INCORRECT_TIER_CALCULATION:
+   Tier progression uses gross spend instead of qualifying net spend.
+
+Additional exception categories:
+- Duplicate accrual.
+- Missing reversal reference.
+- Invalid customer reference.
+- Expired reward.
+- Invalid account status.
+- Concurrent redemption conflict.
+- Missing earning lot.
+- Negative balance.
+- Invalid rule effective date.
+
+Exception fields:
+- exception_id.
+- issue_type.
+- entity_type.
+- entity_id.
+- detected_at.
+- severity.
+- description.
+- expected_value.
+- actual_value.
+- ground_truth_label.
+- resolution_status.
+- resolution_action.
+- resolved_by.
+- resolved_at.
+
+Features:
+- Exception listing.
+- Severity filters.
+- Issue-type filters.
+- Exception detail view.
+- Root-cause analysis.
+- Evidence and linked transaction records.
+- Resolution workflow.
+- Audit history.
+
+Do not silently corrupt unrelated records when creating anomalies. Store deliberate anomaly cases with explicit issue types and ground-truth labels.
+
+### Module 14: Data Generator
+
+Create a fully functional synthetic data generation engine.
+
+Use a fixed random seed:
+
+20261022
+
+Support two execution modes:
+
+STARTER:
+- 500 customers.
+- 2,500 orders.
+- 7,500 points transactions.
+
+FULL:
+- 20,000 customers.
+- 100,000 orders.
+- 300,000 points transactions.
+
+All volumes must be configurable.
+
+Generate master data first:
+1. Customer.
+2. Tier.
+3. Rule.
+4. LoyaltyAccount.
+5. Reward.
+
+Then dependent records:
+6. Order.
+7. OrderLine.
+8. PointsTransaction.
+9. Redemption.
+10. ExpiryBatch.
+11. Earning lots.
+12. Return and reversal events.
+13. Tier change events.
+
+Generation requirements:
+- Realistic customer attributes.
+- Different purchasing patterns.
+- Different order channels.
+- Varied order amounts.
+- Multiple order lines.
+- Full and partial returns.
+- Redemption attempts.
+- Expiring points.
+- Tier upgrades and downgrades.
+- Concurrent redemption scenarios.
+- Normal and exceptional transactions.
+
+Generate valid baseline records first.
+
+After generating baseline data, inject controlled and labelled anomaly cases.
+
+Use deterministic IDs and naming:
+
+LOY-<customer-id>
+ORD-2026-000001
+PTS-2026-00000001
+RDM-2026-000001
+EXP-2026-000001
+
+Never generate dependent records with invalid parent IDs unless deliberately testing a labelled referential-integrity failure in an isolated test dataset.
+
+Use deterministic random number generation and deterministic ordering.
+
+Ensure that starter and full modes use the same underlying generation logic.
+
+### Module 15: Ground Truth Management
+
+Create a separate ground-truth dataset.
+
+Files:
+- ground_truth.csv.
+- ground_truth.json.
+
+Ground truth must include:
+- record_id.
+- entity_type.
+- issue_type.
+- expected_decision.
+- expected_value.
+- actual_value.
+- anomaly_label.
+- severity.
+- explanation.
+
+Labels must be generated from documented business rules.
+
+Never use ground-truth labels as model inputs or application features.
+
+Keep ground truth separate from the operational dataset.
+
+### Module 16: Data Validation and Reconciliation
+
+Build a dedicated validation engine.
+
+Implement checks for:
+
+1. Primary-key uniqueness.
+2. Foreign-key integrity.
+3. Required-field completeness.
+4. Allowed enum values.
+5. Date ordering.
+6. Effective-date validity.
+7. Order arithmetic reconciliation.
+8. Points accrual reconciliation.
+9. Account balance versus ledger sum.
+10. Redemption versus available balance.
+11. Reversal-to-accrual references.
+12. Expiration idempotency.
+13. Tier progression accuracy.
+14. Duplicate event detection.
+15. Lifecycle transition validity.
+16. Negative balance detection.
+
+Provide:
+- Validation execution.
+- Validation summary.
+- Passed checks.
+- Failed checks.
+- Warning counts.
+- Failed record references.
+- Downloadable validation report.
+
+Acceptance criteria:
+- Baseline records must pass applicable business validations.
+- Deliberate anomalies must be identified and labelled.
+- Every valid balance must reconcile to its ledger.
+- Every reversal must reference an original accrual.
+- Expiration must be idempotent.
+- Tier must follow configured qualifying-spend rules.
+
+### Module 17: Analytics and Business Intelligence
+
+Create an analytics module with:
+
+Customer analytics:
+- Active customers.
+- New customers.
+- Repeat purchasers.
+- Tier distribution.
+- Customer lifetime value.
+- Average points balance.
+
+Loyalty analytics:
+- Accrual volume.
+- Redemption volume.
+- Expired points.
+- Reversed points.
+- Outstanding points liability.
+- Redemption percentage.
+- Expiration percentage.
+
+Operational analytics:
+- Failed transactions.
+- Exception rate.
+- Reconciliation success.
+- Duplicate event count.
+- Expiration batch success.
+- Redemption failure rate.
+
+Show time-series charts, rankings, summary KPIs, and downloadable reports.
+
+All KPIs must be calculated using backend aggregation queries.
+
+### Module 18: Audit and Activity History
+
+Create an audit log for all important state-changing operations.
+
+Track:
+- Actor.
+- Action.
+- Entity type.
+- Entity ID.
+- Previous state.
+- New state.
+- Timestamp.
+- Source.
+- Reason.
+- Correlation ID.
+
+Use append-only audit records.
+
+Users must be able to trace a points transaction back to its original order, customer, rule, and associated events.
+
+## 6. DATABASE DESIGN
+
+Create normalized relational tables for:
+
+1. Customer.
+2. LoyaltyAccount.
+3. Tier.
+4. Rule.
+5. Order.
+6. OrderLine.
+7. PointsTransaction.
+8. Reward.
+9. Redemption.
+10. ExpiryBatch.
+11. EarningLot.
+12. ReturnEvent.
+13. TierHistory.
+14. AuditLog.
+15. Exception.
+16. GroundTruth.
+17. DataGenerationRun.
+18. ValidationRun.
+
+Define:
+- Primary keys.
+- Foreign keys.
+- Unique constraints.
+- Not-null constraints.
+- Check constraints.
+- Indexes.
+- Created and updated timestamps.
+- Effective dates.
+- Lifecycle statuses.
+
+Relationships:
+- Customer 1:1 LoyaltyAccount.
+- Customer 1:N Order.
+- LoyaltyAccount 1:N PointsTransaction.
+- Order 1:N OrderLine.
+- Order 1:N PointsTransaction.
+- LoyaltyAccount 1:N Redemption.
+- Reward 1:N Redemption.
+- PointsTransaction 1:N linked compensating transactions.
+- LoyaltyAccount 1:N EarningLot.
+- EarningLot 1:N expiration and reversal allocations where required.
+- ExpiryBatch 1:N expiration processing records.
+- LoyaltyAccount 1:N TierHistory.
+- Any auditable entity 1:N AuditLog.
+
+Use explicit bridge tables for genuine many-to-many relationships.
+
+Document optional relationships and cardinality.
+
+Use a clear schema and migration strategy.
+
+## 7. FRONTEND DESIGN REQUIREMENTS
+
+Create a modern enterprise SaaS interface.
+
+Design direction:
+- Clean, professional, premium dashboard.
+- Responsive desktop and tablet layouts.
+- Sidebar navigation.
+- Top navigation bar.
+- Breadcrumbs.
+- Search functionality.
+- Data tables with pagination.
+- Sorting and filtering.
+- Date range selectors.
+- Status indicators.
+- KPI cards.
+- Interactive charts.
+- Detail drawers and modals.
+- Confirmation dialogs.
+- Toast notifications.
+- Loading and empty states.
+- Error handling.
+
+Suggested navigation:
+
+1. Dashboard.
+2. Customers.
+3. Loyalty Accounts.
+4. Orders.
+5. Points Ledger.
+6. Accrual Management.
+7. Redemption.
+8. Returns & Reversals.
+9. Points Expiration.
+10. Loyalty Tiers.
+11. Rules Engine.
+12. Rewards Catalog.
+13. Exceptions.
+14. Reconciliation.
+15. Data Generator.
+16. Ground Truth.
+17. Analytics.
+18. Audit Logs.
+19. Validation.
+20. Settings.
+
+Build functional screens for each module.
+
+Every button, form, filter, action, and navigation item must work.
+
+Do not leave placeholder pages or nonfunctional controls.
+
+## 8. BACKEND API REQUIREMENTS
+
+Build RESTful APIs with consistent response structures.
+
+Example endpoints:
+
+Authentication:
+POST /api/auth/login
+POST /api/auth/logout
+GET /api/auth/me
+
+Customers:
+GET /api/customers
+POST /api/customers
+GET /api/customers/{id}
+PUT /api/customers/{id}
+
+Loyalty accounts:
+GET /api/loyalty-accounts
+GET /api/loyalty-accounts/{id}
+GET /api/loyalty-accounts/{id}/balance
+GET /api/loyalty-accounts/{id}/ledger
+
+Tiers:
+GET /api/tiers
+POST /api/tiers
+PUT /api/tiers/{id}
+
+Rules:
+GET /api/rules
+POST /api/rules
+PUT /api/rules/{id}
+
+Orders:
+GET /api/orders
+POST /api/orders
+GET /api/orders/{id}
+
+Accrual:
+POST /api/points/accrue
+
+Redemption:
+POST /api/redemptions
+GET /api/redemptions
+GET /api/redemptions/{id}
+
+Returns:
+POST /api/returns
+GET /api/returns
+
+Expiration:
+POST /api/expiration/run
+GET /api/expiration/batches
+
+Ledger:
+GET /api/transactions
+GET /api/transactions/{id}
+
+Exceptions:
+GET /api/exceptions
+GET /api/exceptions/{id}
+POST /api/exceptions/{id}/resolve
+
+Reconciliation:
+POST /api/reconciliation/run
+GET /api/reconciliation/results
+
+Data generation:
+POST /api/data-generator/run
+GET /api/data-generator/status/{run_id}
+
+Validation:
+POST /api/validation/run
+GET /api/validation/results/{run_id}
+
+Analytics:
+GET /api/analytics/dashboard
+GET /api/analytics/loyalty
+GET /api/analytics/customers
+
+Exports:
+GET /api/exports/customers
+GET /api/exports/orders
+GET /api/exports/transactions
+GET /api/exports/ground-truth
+GET /api/exports/validation
+
+Implement pagination, filtering, sorting, API validation, proper HTTP status codes, centralized exception handling, and API documentation using OpenAPI/Swagger.
+
+## 9. SECURITY AND DATA INTEGRITY
+
+Implement:
+- Password hashing.
+- Role-based access control.
+- Input validation.
+- SQL injection prevention.
+- Secure environment variables.
+- CORS configuration.
+- API rate limiting where appropriate.
+- Transactional integrity.
+- Idempotency protection.
+- Concurrency control.
+- Immutable posted ledger transactions.
+- Audit logging.
+
+Never store secrets in source code.
+
+## 10. TESTING REQUIREMENTS
+
+Create automated tests for:
+
+Normal scenarios:
+- Customer registration.
+- Account creation.
+- Valid points accrual.
+- Valid redemption.
+- Successful return.
+- Partial return.
+- Points expiration.
+- Tier upgrade.
+
+Boundary scenarios:
+- Zero eligible spend.
+- Minimum redemption.
+- Exact available balance.
+- Exact tier threshold.
+- Expiration date boundary.
+
+Negative scenarios:
+- Redemption exceeding balance.
+- Duplicate accrual.
+- Duplicate expiration.
+- Invalid customer ID.
+- Reversal without original accrual.
+- Inactive account redemption.
+- Expired reward redemption.
+- Concurrent redemption.
+
+Mandatory anomaly scenarios:
+- Balance mismatch.
+- Redemption exceeds available points.
+- Returned order retains earned points.
+- Points expire twice.
+- Tier uses gross instead of qualifying spend.
+
+Test actual database state, not just mocked service return values.
+
+## 11. REPRODUCIBILITY AND EXPORTS
+
+Implement a reproducibility module.
+
+Requirements:
+- Fixed seed: 20261022.
+- Configurable data volume.
+- Generation run ID.
+- Generator version.
+- Parameter configuration.
+- Dataset checksums.
+- File row counts.
+- Execution timestamp.
+- Validation results.
+
+Regenerate the same dataset twice using the same seed and configuration.
+
+Compare:
+- Row counts.
+- Primary-key sequences.
+- Content checksums.
+- Ground-truth records.
+
+The results must demonstrate reproducibility.
+
+Export:
+- CSV.
+- JSON.
+- SQL seed files.
+- README.md.
+- schema.sql.
+- data_dictionary.md.
+- validation_summary.json.
+- source_manifest.json.
+- ground_truth.csv.
+- ground_truth.json.
+
+Use lawful synthetic data only. Do not collect real customer personal information.
+
+## 12. REQUIRED PROJECT STRUCTURE
+
+Create a maintainable monorepo structure:
+
+loyalty-management-platform/
+│
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── layouts/
+│   │   ├── services/
+│   │   ├── hooks/
+│   │   ├── types/
+│   │   └── utils/
+│   ├── public/
+│   └── package.json
+│
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   ├── models/
+│   │   ├── schemas/
+│   │   ├── services/
+│   │   ├── repositories/
+│   │   ├── business_rules/
+│   │   ├── generators/
+│   │   ├── validators/
+│   │   ├── analytics/
+│   │   ├── audit/
+│   │   └── core/
+│   ├── migrations/
+│   ├── tests/
+│   └── requirements.txt
+│
+├── database/
+│   ├── schema.sql
+│   └── seeds/
+│
+├── generated_data/
+│   ├── starter/
+│   ├── full/
+│   └── ground_truth/
+│
+├── docs/
+│   ├── README.md
+│   ├── architecture.md
+│   ├── data_dictionary.md
+│   ├── business_rules.md
+│   ├── api_documentation.md
+│   └── validation_report.md
+│
+├── docker-compose.yml
+├── .env.example
+└── README.md
+
+## 13. IMPLEMENTATION APPROACH
+
+Build the project incrementally.
+
+Phase 1: Architecture and database design.
+- Define entities and relationships.
+- Create database schema.
+- Implement migrations.
+- Create data dictionary.
+- Document business rules.
+
+Phase 2: Backend foundation.
+- Authentication.
+- CRUD APIs.
+- Customer and account management.
+- Tier and rule configuration.
+
+Phase 3: Loyalty business logic.
+- Accrual.
+- Redemption.
+- Returns and reversals.
+- Expiration.
+- Tier progression.
+- Ledger reconciliation.
+
+Phase 4: Synthetic data generator.
+- Master data generation.
+- Dependent record generation.
+- Full and starter modes.
+- Anomaly injection.
+- Ground truth generation.
+- Reproducibility.
+
+Phase 5: Frontend development.
+- Dashboard.
+- Customer management.
+- Account management.
+- Orders.
+- Ledger.
+- Redemption.
+- Returns.
+- Expiration.
+- Exceptions.
+- Analytics.
+- Data generation and validation.
+
+Phase 6: Testing and quality assurance.
+- Unit tests.
+- Integration tests.
+- End-to-end tests.
+- Negative tests.
+- Performance tests.
+- Reconciliation tests.
+
+Phase 7: Deployment and documentation.
+- Docker setup.
+- Environment configuration.
+- Database initialization.
+- Demo data.
+- Setup instructions.
+- Deployment documentation.
+
+## 14. FINAL ACCEPTANCE CRITERIA
+
+The application is considered complete only when:
+
+1. Frontend and backend are connected and functional.
+2. PostgreSQL stores all application data.
+3. All specified entities and relationships are implemented.
+4. Customer, order, and points transaction data can be generated.
+5. The full-scale generator supports 20,000 customers, 100,000 orders, and 300,000 points transactions.
+6. Points accrual uses configured earning rules.
+7. Redemption validates available points atomically.
+8. Returns create linked reversal entries.
+9. Expiration operates at earning-lot level and is idempotent.
+10. Tier progression uses qualifying net spend.
+11. Every posted transaction is auditable.
+12. All five mandatory anomaly types are detectable.
+13. Ground truth is stored separately from operational input data.
+14. Validation identifies inconsistencies.
+15. Dashboard metrics come from actual database records.
+16. CSV, JSON, and SQL exports work.
+17. Reproducibility checksums match across two runs with identical parameters.
+18. Automated tests pass.
+19. The application runs using documented startup commands.
+20. No critical workflow relies on hardcoded mock data or placeholder buttons.
+
+## 15. IMPORTANT EXECUTION INSTRUCTIONS
+
+Do not stop after producing architecture diagrams, wireframes, database schemas, or code snippets.
+
+Actually create all frontend and backend source files.
+
+Implement real database connectivity and functional APIs.
+
+Run migrations and initialize the database.
+
+Start the application and verify the frontend-to-backend integration.
+
+Run the automated tests and resolve errors.
+
+Generate starter data and demonstrate the complete loyalty lifecycle.
+
+Verify each mandatory anomaly scenario.
+
+Then execute the full-scale generation and export process.
+
+If the full dataset is too large for a single execution, use background jobs and chunked database inserts.
+
+Maintain a clear implementation checklist and report which requirements are completed, partially completed, or not completed.
+
+Do not claim a feature is implemented unless its functionality has been tested.
+
+**FINAL DELIVERABLE:** A complete, runnable, documented, full-stack Enterprise Loyalty Points Management Platform with a responsive frontend, functional backend, PostgreSQL database, configurable loyalty engine, immutable ledger, synthetic data generation, anomaly detection, ground-truth datasets, validation, analytics, exports, and reproducibility verification.

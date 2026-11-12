@@ -1,0 +1,9 @@
+.pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0 2px;color:#71808d;font-size:12px}
+.pagination-links{display:flex;align-items:center;gap:12px}
+.pagination a{color:#087f78;text-decoration:none;font-weight:700}
+.pagination a:hover{text-decoration:underline}
+.lookup-results{display:grid;gap:5px;margin-top:6px}
+.lookup-results:empty{display:none}
+.lookup-result{padding:9px 10px;text-align:left;background:#fff;border:1px solid #dfe7e9;border-radius:7px;color:#172b3a;cursor:pointer}
+.lookup-result:hover{border-color:#50b5a6;background:#f0f7f6}
+@media(max-width:700px){.pagination{align-items:flex-start;flex-direction:column}}

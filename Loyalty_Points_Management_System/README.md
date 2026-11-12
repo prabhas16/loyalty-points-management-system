@@ -12,6 +12,12 @@ A Flask + MySQL web application for managing customer loyalty accounts, orders, 
 - Lot-based FIFO redemption and expiry; expiry runs are idempotent.
 - Searchable transaction ledger and CSV export.
 - Reports by transaction type and tier.
+- 50-row pagination on data lists and search-based customer, account and reward lookups.
+- CSRF protection on state-changing forms.
+- Account-level row locking for orders, returns, expiry and point redemption.
+- Deterministic 20,000-customer / 100,000-order / 300,000-transaction benchmark generator.
+- Five labelled injected anomalies with ground-truth output and reproducible SHA-256 checksums.
+- Automated acceptance tests, including concurrent-redemption and full-scale dataset checks.
 
 ## 2. Requirements
 - Python 3.10+
@@ -24,11 +30,13 @@ Open this folder in VS Code. In Terminal (PowerShell):
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 copy .env.example .env
 ```
 
-Edit `.env`. Replace `YOUR_MYSQL_PASSWORD` with your MySQL root password.
+Edit `.env` with your MySQL connection details and set `SECRET_KEY` to a random secret
+(for example, generate one with `python -c "import secrets; print(secrets.token_hex(32))"`).
+Do not commit `.env`. Set `SESSION_COOKIE_SECURE=true` when serving the application over HTTPS.
 
 In MySQL Workbench, open `schema.sql` and execute it. It creates `loyalty_db`.
 
@@ -38,7 +46,7 @@ Then start the app:
 python app.py
 ```
 
-Open `http://127.0.0.1:5000/setup` once to create tables and seed tiers, rules and rewards. For the existing loyalty database schema, this step applies an idempotent, additive migration: it retains existing tables and rows, maps the app to the existing column names, and adds only fields the app requires. It also creates a separate `expiry_batch_run` table; the existing `expirybatch` table is left unchanged. Then open `http://127.0.0.1:5000`.
+Open `http://127.0.0.1:5000` and choose **Database setup** once to create tables and seed tiers, rules and rewards. The setup command applies an idempotent, additive migration to an existing supported loyalty schema and retains its tables and rows. This local-only version has no login or role-based access control; do not expose it to other machines or the public internet.
 
 ## 4. Main workflow
 1. Add a customer in Customers.
@@ -77,13 +85,54 @@ Change tier thresholds, rates and expiry policy to match the organisation's appr
 - Order 1:N PointsTransaction (optional for non-order ledger events).
 - PointsTransaction 1:N child transactions through `source_accrual_id`.
 - LoyaltyAccount 1:N Redemption; Reward 1:N Redemption.
-- ExpiryBatch 1:N conceptually through the transaction description in this starter version. For regulated production audit, add an explicit `expiry_batch_id` FK to PointsTransaction.
+- ExpiryBatch 1:N PointsTransaction through `expiry_batch_id`.
 
 ## 8. Validation and production notes
 - Unique constraints exist for all public codes and customer email.
 - Foreign keys enforce parent-child integrity.
-- Redemption validates available balance before committing.
+- Redemption locks the loyalty-account row before checking balance and debiting points; transaction code sequences are also locked when allocated.
+- All state-changing forms, including login and logout, use CSRF protection.
 - Expiry is idempotent because each run computes remaining balance per accrual lot.
 - Return validation prevents returning more than the remaining order value.
-- The app is an operational MVP, not yet a production-certified financial ledger. Before production: add authentication/role-based permissions, CSRF protection, row-level locking or serializable isolation for concurrent redemptions, immutable DB triggers/permissions, structured audit logs, migrations, backups, monitoring, automated tests, and explicit expiry-batch linkage.
-- The required 20,000 customer / 100,000 order / 300,000 transaction synthetic benchmark generator, labelled anomaly ground truth and deterministic checksum comparison are separate acceptance tasks; this UI MVP does not claim those are completed.
+- The app is an operational MVP, not a production-certified financial ledger. Before production, add immutable DB permissions/triggers, structured audit logs, backups, monitoring, and run concurrency acceptance tests against the production MySQL/InnoDB version.
+
+## 9. Benchmark dataset and acceptance tests
+
+The generator only writes to a database with no customer, account, order, ledger, redemption,
+expiry-batch or snapshot rows. Use a dedicated benchmark database; it refuses to append to
+existing datasets and never deletes existing rows.
+
+Create an empty database named `loyalty_benchmark`, then set `BENCHMARK_DB_*` in your
+ignored local `.env` file. Keep its database separate from the normal `DB_NAME`:
+
+```powershell
+python benchmark\generate_benchmark.py
+```
+
+The default run creates exactly 20,000 customers, 100,000 orders and 300,000 points
+transactions. Use `--seed` to choose a repeatable seed. The JSON manifest records per-table
+checksums, a dataset checksum and the five ground-truth anomaly cases from
+`benchmark\anomaly_cases.json`. Re-run with the same seed against a fresh empty database to
+compare manifests. The injected cases cover a balance snapshot mismatch, oversized
+redemption, returned order without reversal, duplicate expiry and tier selection using gross
+instead of qualifying spend. Generated manifests and bulk data are ignored by Git.
+
+To append the same benchmark scale to the database configured for the Flask app without
+replacing existing records, run:
+
+```powershell
+python benchmark\generate_benchmark.py --app-database --append
+```
+
+This appends 20,000 customers, 100,000 orders and 300,000 transactions using non-colliding
+IDs. It uses the app's `DATABASE_URL` or `DB_*` settings and updates code sequences after
+the import. Use this only for local testing.
+
+Run the automated tests with:
+
+```powershell
+python -m pytest -q
+```
+
+The suite includes a full-scale count acceptance test and can take about a minute. It uses a
+temporary SQLite database and does not connect to or alter the configured MySQL database.

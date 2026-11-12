@@ -1,19 +1,29 @@
 import os
+import re
 from datetime import datetime, date, timedelta
 from decimal import Decimal, ROUND_FLOOR
-from functools import wraps
 
 from flask import Flask, render_template, request, redirect, url_for, flash, Response
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf.csrf import CSRFProtect
 from sqlalchemy import func, inspect as sa_inspect, or_
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.engine import URL
 from sqlalchemy.orm import joinedload, synonym
 from dotenv import load_dotenv
 
 load_dotenv()
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-this-secret-key")
+secret_key = os.getenv("SECRET_KEY")
+if not secret_key:
+    raise RuntimeError("Set a strong SECRET_KEY in the environment or local .env file.")
+app.config["SECRET_KEY"] = secret_key
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.getenv("SESSION_COOKIE_SECURE", "false").lower() in {
+    "1", "true", "yes",
+}
+app.config["WTF_CSRF_TIME_LIMIT"] = 3600
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "DATABASE_URL", "mysql+pymysql://root:password@localhost:3306/loyalty_db"
 )
@@ -28,6 +38,13 @@ if not os.getenv("DATABASE_URL") and os.getenv("DB_NAME"):
     )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
+csrf = CSRFProtect(app)
+PAGE_SIZE = 50
+
+
+def paginate_query(query):
+    page = max(request.args.get("page", 1, type=int) or 1, 1)
+    return query.paginate(page=page, per_page=PAGE_SIZE, error_out=False)
 
 class Tier(db.Model):
     __tablename__ = "tier"
@@ -151,14 +168,74 @@ class ExpiryBatch(db.Model):
     status = db.Column(db.String(20), nullable=False, default="COMPLETED")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+
+class CodeSequence(db.Model):
+    __tablename__ = "code_sequence"
+
+    prefix = db.Column(db.String(30), primary_key=True)
+    value = db.Column(db.BigInteger, nullable=False, default=0)
+
+
+class BalanceSnapshot(db.Model):
+    __tablename__ = "balance_snapshot"
+
+    account_id = db.Column(
+        db.String(30), db.ForeignKey("loyaltyaccount.account_id"), primary_key=True
+    )
+    points_balance = db.Column(db.BigInteger, nullable=False)
+    snapshot_at = db.Column(db.DateTime, nullable=False)
+
+
+SEQUENCE_MODELS = {
+    "CUS-": Customer,
+    "LOY-": LoyaltyAccount,
+    "ORD-2026-": Order,
+    "LINE-": OrderLine,
+    "PTS-2026-": PointsTransaction,
+    "RWD-": Reward,
+    "RDM-2026-": Redemption,
+    "EXP-2026-": ExpiryBatch,
+}
+
+
+def _last_sequence_value(model):
+    latest = db.session.query(model.id).order_by(model.id.desc()).first()
+    if not latest:
+        return 0
+    match = re.search(r"(\d+)$", latest[0])
+    return int(match.group(1)) if match else 0
+
+
+def initialize_sequences():
+    for prefix, model in SEQUENCE_MODELS.items():
+        sequence = (
+            CodeSequence.query.filter_by(prefix=prefix)
+            .with_for_update()
+            .first()
+        )
+        if sequence is None:
+            db.session.add(CodeSequence(prefix=prefix, value=_last_sequence_value(model)))
+        else:
+            sequence.value = max(sequence.value, _last_sequence_value(model))
+    db.session.commit()
+
+
 def next_code(prefix, model, width=8):
-    count = db.session.query(func.count(model.id)).scalar() or 0
-    sequence = count + 1
-    code = f"{prefix}{sequence:0{width}d}"
-    while db.session.query(model.id).filter_by(id=code).first():
-        sequence += 1
-        code = f"{prefix}{sequence:0{width}d}"
-    return code
+    sequence = db.session.query(CodeSequence).filter_by(prefix=prefix).with_for_update().first()
+    if sequence is None:
+        sequence = CodeSequence(prefix=prefix, value=_last_sequence_value(model))
+        db.session.add(sequence)
+        db.session.flush()
+    sequence.value += 1
+    return f"{prefix}{sequence.value:0{width}d}"
+
+
+def lock_account(account_id):
+    return (
+        LoyaltyAccount.query.filter_by(id=account_id)
+        .with_for_update()
+        .first()
+    )
 
 
 def migrate_existing_schema():
@@ -184,7 +261,6 @@ def migrate_existing_schema():
         },
         "reward": {"reward_id", "reward_name", "points_cost", "active"},
         "redemption": {"redemption_id", "account_id", "reward_id", "redemption_date", "status"},
-        "expirybatch": {"expiry_batch_id", "account_id", "transaction_id", "expiry_date", "status"},
     }
     if not set(required_columns).issubset(tables):
         missing = ", ".join(sorted(set(required_columns) - tables))
@@ -315,9 +391,92 @@ def customers():
         query = query.filter(or_(Customer.full_name.ilike(f"%{q}%"),
                                  Customer.customer_code.ilike(f"%{q}%"),
                                  Customer.email.ilike(f"%{q}%")))
-    customer_rows = query.order_by(Customer.id.desc()).limit(300).all()
+    pagination = paginate_query(query.order_by(Customer.id.desc()))
+    customer_rows = pagination.items
     balances = {c.account.id: balance_for(c.account.id) for c in customer_rows if c.account}
-    return render_template("customers.html", customers=customer_rows, balances=balances, q=q)
+    return render_template(
+        "customers.html",
+        customers=customer_rows,
+        balances=balances,
+        pagination=pagination,
+        q=q,
+    )
+
+
+@app.route("/lookup/customers")
+def customer_options():
+    q = request.args.get("q", "").strip()
+    if len(q) < 2:
+        return {"results": []}
+    matches = (
+        Customer.query.filter(
+            or_(
+                Customer.full_name.ilike(f"%{q}%"),
+                Customer.customer_code.ilike(f"%{q}%"),
+                Customer.email.ilike(f"%{q}%"),
+            )
+        )
+        .order_by(Customer.full_name)
+        .limit(20)
+        .all()
+    )
+    return {
+        "results": [
+            {"id": customer.id, "label": f"{customer.full_name} · {customer.customer_code}"}
+            for customer in matches
+        ]
+    }
+
+
+@app.route("/lookup/accounts")
+def account_options():
+    q = request.args.get("q", "").strip()
+    if len(q) < 2:
+        return {"results": []}
+    matches = (
+        LoyaltyAccount.query.join(Customer)
+        .filter(
+            or_(
+                LoyaltyAccount.account_code.ilike(f"%{q}%"),
+                Customer.full_name.ilike(f"%{q}%"),
+                Customer.customer_code.ilike(f"%{q}%"),
+            )
+        )
+        .order_by(Customer.full_name)
+        .limit(20)
+        .all()
+    )
+    return {
+        "results": [
+            {
+                "id": account.account_code,
+                "label": f"{account.customer.full_name} · {account.account_code}",
+            }
+            for account in matches
+        ]
+    }
+
+
+@app.route("/lookup/rewards")
+def reward_options():
+    q = request.args.get("q", "").strip()
+    if len(q) < 2:
+        return {"results": []}
+    matches = (
+        Reward.query.filter(
+            Reward.active.is_(True),
+            or_(Reward.id.ilike(f"%{q}%"), Reward.name.ilike(f"%{q}%")),
+        )
+        .order_by(Reward.name)
+        .limit(20)
+        .all()
+    )
+    return {
+        "results": [
+            {"id": reward.id, "label": f"{reward.name} · {reward.points_cost} points"}
+            for reward in matches
+        ]
+    }
 
 @app.route("/customers/new", methods=["GET","POST"])
 def new_customer():
@@ -348,13 +507,25 @@ def new_customer():
 @app.route("/orders", methods=["GET","POST"])
 def orders():
     if request.method=="POST":
-        customer=Customer.query.get_or_404(request.form["customer_id"])
+        customer_id = request.form.get("customer_id", "").strip()
+        customer = db.session.get(Customer, customer_id)
+        if customer is None:
+            flash("Choose a customer from the search results.", "danger")
+            return redirect(url_for("orders"))
         gross=Decimal(request.form["gross_amount"])
         discount=Decimal(request.form.get("discount_amount") or "0")
         item_name=request.form.get("item_name","Purchase").strip() or "Purchase"
         if gross <= 0 or discount < 0 or discount > gross or len(item_name)>40:
             flash("Enter a positive order amount, a valid discount, and an item name of at most 40 characters.", "danger")
         else:
+            loyalty_account = customer.account
+            if loyalty_account is None:
+                flash("This customer does not have a loyalty account.", "danger")
+                return redirect(url_for("orders"))
+            account = lock_account(loyalty_account.id)
+            if account is None:
+                flash("The loyalty account is no longer available.", "danger")
+                return redirect(url_for("orders"))
             net=(gross-discount).quantize(Decimal("0.01"))
             order_code=next_code("ORD-2026-",Order,width=6)
             order=Order(id=order_code,
@@ -363,7 +534,6 @@ def orders():
             db.session.add(order); db.session.flush()
             db.session.add(OrderLine(id=next_code("LINE-",OrderLine),order_id=order.id,item_name=item_name,
                 quantity=1,unit_price=net,line_total=net))
-            account=customer.account
             rule=Rule.query.filter_by(active=True).order_by(Rule.id.desc()).first()
             rate=Decimal(account.tier.earning_rate) * (Decimal(rule.points_per_currency) if rule else Decimal("1"))
             minimum=Decimal(rule.minimum_order_amount) if rule else Decimal("0")
@@ -377,13 +547,15 @@ def orders():
             db.session.commit()
             flash(f"Order saved. {points} points accrued.", "success")
             return redirect(url_for("orders"))
-    recent=Order.query.order_by(Order.id.desc()).limit(100).all()
-    return render_template("orders.html", customers=Customer.query.order_by(Customer.full_name).all(), orders=recent)
+    pagination = paginate_query(Order.query.order_by(Order.id.desc()))
+    return render_template("orders.html", orders=pagination.items, pagination=pagination)
 
 @app.route("/returns", methods=["GET","POST"])
 def returns():
     if request.method=="POST":
-        order=Order.query.filter_by(order_code=request.form["order_code"].strip()).first()
+        order=Order.query.filter_by(
+            order_code=request.form["order_code"].strip()
+        ).with_for_update().first()
         amount=Decimal(request.form["return_amount"])
         if not order:
             flash("Order not found.", "danger")
@@ -394,6 +566,14 @@ def returns():
             if not accruals:
                 flash("No accrual exists for this order.", "warning")
             else:
+                loyalty_account = order.customer.account
+                if loyalty_account is None:
+                    flash("This order's customer has no loyalty account.", "danger")
+                    return redirect(url_for("returns"))
+                account=lock_account(loyalty_account.id)
+                if account is None:
+                    flash("The loyalty account is no longer available.", "danger")
+                    return redirect(url_for("returns"))
                 for accrual in accruals:
                     original_net=Decimal(order.qualifying_spend)
                     new_returned=Decimal(order.returned_amount)+amount
@@ -402,17 +582,17 @@ def returns():
                         source_accrual_id=accrual.id,transaction_type="REVERSAL").all())
                     delta=max(0,target_reversal-already)
                     if delta:
-                        record_transaction(order.customer.account.id,"REVERSAL",-delta,
+                        record_transaction(account.id,"REVERSAL",-delta,
                             f"Return against {order.order_code}",order_id=order.id,source_accrual_id=accrual.id)
                 order.returned_amount=Decimal(order.returned_amount)+amount
                 order.status="PARTIALLY_RETURNED" if order.returned_amount<order.qualifying_spend else "REFUNDED"
-                account=order.customer.account
                 account.qualifying_spend=max(Decimal("0"),Decimal(account.qualifying_spend)-amount)
                 refresh_tier(account)
                 db.session.commit()
                 flash("Return recorded and earned points reversed proportionally.", "success")
                 return redirect(url_for("returns"))
-    return render_template("returns.html", orders=Order.query.order_by(Order.id.desc()).limit(100).all())
+    pagination = paginate_query(Order.query.order_by(Order.id.desc()))
+    return render_template("returns.html", orders=pagination.items, pagination=pagination)
 
 @app.route("/rewards", methods=["GET","POST"])
 def rewards():
@@ -426,13 +606,21 @@ def rewards():
             db.session.add(Reward(id=reward_code,name=name,points_cost=cost))
             db.session.commit(); flash("Reward created.","success")
             return redirect(url_for("rewards"))
-    return render_template("rewards.html", rewards=Reward.query.order_by(Reward.id.desc()).all())
+    pagination = paginate_query(Reward.query.order_by(Reward.id.desc()))
+    return render_template(
+        "rewards.html",
+        rewards=pagination.items,
+        pagination=pagination,
+    )
 
 @app.route("/redeem", methods=["GET","POST"])
 def redeem():
     if request.method=="POST":
-        account=LoyaltyAccount.query.filter_by(account_code=request.form["account_code"].strip()).first()
-        reward=Reward.query.get(request.form["reward_id"])
+        account=LoyaltyAccount.query.filter_by(
+            account_code=request.form["account_code"].strip()
+        ).with_for_update().first()
+        reward_id = request.form.get("reward_id", "").strip()
+        reward = db.session.get(Reward, reward_id) if reward_id else None
         if not account:
             flash("Loyalty account not found.","danger")
         elif not reward or not reward.active:
@@ -441,7 +629,6 @@ def redeem():
             flash(f"Insufficient points. Available balance: {balance_for(account.id)}.","danger")
         else:
             try:
-                # Transaction is committed as one unit; production deployments should use row-level locking.
                 redemption_code=next_code("RDM-2026-",Redemption,width=6)
                 redemption=Redemption(id=redemption_code,
                     account_id=account.id,reward_id=reward.id,points_spent=reward.points_cost,status="APPROVED")
@@ -462,11 +649,19 @@ def redeem():
                 db.session.commit()
                 flash(f"Redemption approved: {redemption.redemption_code}.","success")
                 return redirect(url_for("redeem"))
-            except Exception as exc:
-                db.session.rollback(); flash(str(exc),"danger")
-    return render_template("redeem.html", rewards=Reward.query.filter_by(active=True).all(),
-        accounts=LoyaltyAccount.query.join(Customer).order_by(Customer.full_name).all(),
-        redemptions=Redemption.query.order_by(Redemption.id.desc()).limit(50).all())
+            except ValueError as exc:
+                db.session.rollback()
+                flash(str(exc),"danger")
+            except SQLAlchemyError:
+                db.session.rollback()
+                app.logger.exception("Redemption transaction failed")
+                flash("The redemption could not be completed. Please retry.", "danger")
+    pagination = paginate_query(Redemption.query.order_by(Redemption.id.desc()))
+    return render_template(
+        "redeem.html",
+        pagination=pagination,
+        redemptions=pagination.items,
+    )
 
 @app.route("/expiry", methods=["GET","POST"])
 def expiry():
@@ -482,6 +677,9 @@ def expiry():
             PointsTransaction.expiry_date.isnot(None),
             PointsTransaction.expiry_date<=run_date).order_by(PointsTransaction.id.asc()).all()
         for lot in accruals:
+            account = lock_account(lot.account_id)
+            if account is None:
+                raise RuntimeError(f"Missing loyalty account {lot.account_id} for accrual {lot.id}")
             remaining=max(0,lot_remaining(lot))
             if remaining:
                 record_transaction(lot.account_id,"EXPIRY",-remaining,
@@ -491,8 +689,13 @@ def expiry():
         db.session.commit()
         flash(f"Expiry completed. {total} points expired. Running the same date again will expire zero additional points.","success")
         return redirect(url_for("expiry"))
-    batches=ExpiryBatch.query.order_by(ExpiryBatch.id.desc()).limit(30).all()
-    return render_template("expiry.html", batches=batches, today=date.today().isoformat())
+    pagination = paginate_query(ExpiryBatch.query.order_by(ExpiryBatch.id.desc()))
+    return render_template(
+        "expiry.html",
+        batches=pagination.items,
+        pagination=pagination,
+        today=date.today().isoformat(),
+    )
 
 @app.route("/ledger")
 def ledger():
@@ -502,8 +705,13 @@ def ledger():
         query=query.filter(or_(PointsTransaction.transaction_code.ilike(f"%{q}%"),
             PointsTransaction.description.ilike(f"%{q}%"),Customer.full_name.ilike(f"%{q}%"),
             Customer.customer_code.ilike(f"%{q}%")))
-    rows=query.order_by(PointsTransaction.id.desc()).limit(500).all()
-    return render_template("ledger.html", rows=rows, q=q)
+    pagination = paginate_query(query.order_by(PointsTransaction.id.desc()))
+    return render_template(
+        "ledger.html",
+        rows=pagination.items,
+        pagination=pagination,
+        q=q,
+    )
 
 @app.route("/reports")
 def reports():
@@ -527,6 +735,7 @@ def export_ledger():
 @app.route("/setup")
 def setup():
     migrate_existing_schema()
+    initialize_sequences()
     if Tier.query.count()==0:
         db.session.add_all([
             Tier(name="Bronze",min_qualifying_spend=0,earning_rate=1.0),
@@ -550,8 +759,10 @@ def health():
     try:
         db.session.execute(db.text("SELECT 1"))
         return {"status":"ok","database":"connected"}
-    except Exception as e:
-        return {"status":"error","message":str(e)},500
+    except SQLAlchemyError:
+        app.logger.exception("Database health check failed")
+        return {"status":"error","message":"database unavailable"},500
+
 
 if __name__=="__main__":
     app.run(debug=True)

@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block heading %}Rewards catalogue{% endblock %}{% block content %}
+<div class="two-col align-start"><div class="form-panel"><h3>Create a reward</h3><form method="post" class="form-grid"><label>Reward name<input name="name" required placeholder="₹500 shopping voucher"></label><label>Points cost<input type="number" name="points_cost" min="1" required></label><div class="form-actions"><button class="button">Add reward</button></div></form></div>
+<div class="panel"><h3>Available rewards</h3>{% for r in rewards %}<div class="reward-row"><div class="reward-icon">◇</div><div><b>{{ r.name }}</b><small>{{ r.reward_code }} · {{ r.points_cost }} points</small></div><span class="pill">Active</span></div>{% else %}<div class="empty">No rewards created.</div>{% endfor %}</div></div>
+{% endblock %}

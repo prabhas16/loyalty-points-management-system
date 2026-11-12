@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block heading %}Orders & accrual{% endblock %}{% block content %}
+<div class="two-col align-start"><div class="form-panel"><h3>Record a purchase</h3><p>Points are calculated from eligible net spend and the customer's current tier.</p>
+<form method="post" class="form-grid">
+<label>Customer<select name="customer_id" required><option value="">Select customer</option>{% for c in customers %}<option value="{{ c.id }}">{{ c.full_name }} · {{ c.customer_code }}</option>{% endfor %}</select></label>
+<label>Item / description<input name="item_name" value="Store purchase" required></label>
+<label>Gross amount (₹)<input type="number" name="gross_amount" min="0.01" step="0.01" required></label>
+<label>Discount amount (₹)<input type="number" name="discount_amount" min="0" step="0.01" value="0"></label>
+<div class="hint">Net spend = gross amount − discount. The app applies the configured minimum order and tier multiplier.</div>
+<div class="form-actions"><button class="button">Save order & accrue points</button></div></form></div>
+<div class="panel"><h3>Accrual rule</h3><div class="rule-line"><span>Calculation</span><b>Floor(net spend × rule × tier rate)</b></div><div class="rule-line"><span>Minimum order</span><b>₹100 default</b></div><div class="rule-line"><span>Point expiry</span><b>365 days default</b></div><p class="muted small">Adjust the default policy in the Rule table before using the system for a real programme.</p></div></div>
+<div class="panel"><div class="panel-head"><div><h3>Recent orders</h3><p>Latest 100 order records</p></div></div><div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Order date</th><th>Net spend</th><th>Returned</th><th>Status</th></tr></thead><tbody>
+{% for o in orders %}<tr><td><b>{{ o.order_code }}</b></td><td>{{ o.customer.full_name }}</td><td>{{ o.order_date.strftime("%d %b %Y") }}</td><td>₹{{ "%.2f"|format(o.qualifying_spend|float) }}</td><td>₹{{ "%.2f"|format(o.returned_amount|float) }}</td><td><span class="pill">{{ o.status }}</span></td></tr>{% else %}<tr><td colspan="6" class="empty">No orders yet.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

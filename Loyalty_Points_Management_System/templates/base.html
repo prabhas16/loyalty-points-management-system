@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}LoyaltyHub{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head><body>
+<aside class="sidebar">
+  <div class="brand"><span class="brand-mark">L</span><div><b>LoyaltyHub</b><small>Points management</small></div></div>
+  <nav>
+    <a href="{{ url_for('dashboard') }}">▦ <span>Dashboard</span></a>
+    <a href="{{ url_for('customers') }}">♙ <span>Customers</span></a>
+    <a href="{{ url_for('orders') }}">▤ <span>Orders & accrual</span></a>
+    <a href="{{ url_for('returns') }}">↶ <span>Returns</span></a>
+    <a href="{{ url_for('rewards') }}">◇ <span>Rewards</span></a>
+    <a href="{{ url_for('redeem') }}">⇧ <span>Redeem points</span></a>
+    <a href="{{ url_for('expiry') }}">◷ <span>Points expiry</span></a>
+    <a href="{{ url_for('ledger') }}">☷ <span>Audit ledger</span></a>
+    <a href="{{ url_for('reports') }}">▥ <span>Reports</span></a>
+  </nav>
+  <div class="sidebar-bottom"><span class="live-dot"></span> System workspace</div>
+</aside>
+<main class="main">
+  <header class="topbar"><div><span class="eyebrow">LOYALTY OPERATIONS</span><h1>{% block heading %}Overview{% endblock %}</h1></div><a class="button button-light" href="{{ url_for('setup') }}">Database setup</a></header>
+  <section class="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for category,message in messages %}<div class="alert alert-{{ category }}">{{ message }}</div>{% endfor %}{% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+    <footer>© 2026 LoyaltyHub · Customer loyalty operations</footer>
+  </section>
+</main>
+</body></html>

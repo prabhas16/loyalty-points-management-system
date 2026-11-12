@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block title %}Dashboard · LoyaltyHub{% endblock %}{% block heading %}Dashboard{% endblock %}
+{% block content %}
+<div class="welcome"><div><span class="eyebrow">OVERVIEW</span><h2>Good work starts with a clear picture.</h2><p>Monitor loyalty activity, points liability and customer engagement.</p></div><a class="button" href="{{ url_for('new_customer') }}">＋ Add customer</a></div>
+<div class="stats">
+ <div class="stat"><div class="stat-label">Total customers</div><div class="stat-value">{{ "{:,}".format(customers) }}</div><div class="stat-note">Registered loyalty members</div></div>
+ <div class="stat"><div class="stat-label">Orders processed</div><div class="stat-value">{{ "{:,}".format(orders) }}</div><div class="stat-note">Completed order records</div></div>
+ <div class="stat"><div class="stat-label">Ledger entries</div><div class="stat-value">{{ "{:,}".format(transactions) }}</div><div class="stat-note">Auditable point events</div></div>
+ <div class="stat stat-dark"><div class="stat-label">Net points balance</div><div class="stat-value">{{ "{:,}".format(outstanding) }}</div><div class="stat-note">Accruals less all debits</div></div>
+</div>
+<div class="two-col">
+ <div class="panel"><div class="panel-head"><div><h3>Recent ledger activity</h3><p>Latest point movements</p></div><a href="{{ url_for('ledger') }}">View ledger →</a></div>
+ {% if recent %}<div class="table-wrap"><table><thead><tr><th>Transaction</th><th>Type</th><th>Points</th><th>Date</th></tr></thead><tbody>
+ {% for t in recent %}<tr><td><b>{{ t.transaction_code }}</b><small>{{ t.description }}</small></td><td><span class="pill">{{ t.transaction_type }}</span></td><td class="{{ 'positive' if t.points>0 else 'negative' }}">{{ "%+d"|format(t.points) }}</td><td>{{ t.created_at.strftime("%d %b %Y") }}</td></tr>{% endfor %}
+ </tbody></table></div>{% else %}<div class="empty">No transactions yet. Create your first customer and order.</div>{% endif %}</div>
+ <div class="panel"><div class="panel-head"><div><h3>Membership tiers</h3><p>Current account distribution</p></div></div>
+ {% for name,count in tier_counts %}<div class="tier-row"><span>{{ name }}</span><div class="bar"><i style="width:{{ (count/customers*100) if customers else 0 }}%"></i></div><b>{{ count }}</b></div>{% else %}<div class="empty">No tier data available.</div>{% endfor %}
+ <div class="mini-metric"><span>Total redeemed points</span><b>{{ "{:,}".format(total_redeemed) }}</b></div>
+ </div>
+</div>
+<div class="quick-grid"><a href="{{ url_for('orders') }}"><b>＋ Record an order</b><span>Calculate eligible points</span></a><a href="{{ url_for('redeem') }}"><b>⇧ Redeem points</b><span>Validate and fulfil a reward</span></a><a href="{{ url_for('expiry') }}"><b>◷ Run expiry</b><span>Expire unused points by lot</span></a></div>
+{% endblock %}

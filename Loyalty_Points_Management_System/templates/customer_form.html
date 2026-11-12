@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block heading %}Add customer{% endblock %}{% block content %}
+<div class="form-panel"><h3>Customer details</h3><p>Create a customer profile and a linked loyalty account.</p>
+<form method="post" class="form-grid">
+<label>Full name<input name="full_name" required maxlength="120" placeholder="e.g. Asha Kumar"></label>
+<label>Email address<input type="email" name="email" required placeholder="asha@example.com"></label>
+<label>Phone number <small>(optional)</small><input name="phone" placeholder="+91 98765 43210"></label>
+<div class="form-actions"><a class="button button-light" href="{{ url_for('customers') }}">Cancel</a><button class="button">Create customer</button></div>
+</form></div>{% endblock %}
